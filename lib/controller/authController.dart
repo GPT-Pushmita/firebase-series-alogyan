@@ -19,7 +19,8 @@ class AuthController extends GetxController {
       Get.offAllNamed('/login');
       print('3 second has passed.'); // Prints after 1 second.
     });
-    loadDemoTasks();
+    // loadDemoTasks();
+    streamTasks();
     super.onInit();
   }
 
@@ -82,90 +83,58 @@ class AuthController extends GetxController {
   //Todo Demo Data
   RxList<TaskModel> tasks = <TaskModel>[].obs;
 
-  void loadDemoTasks() {
-    tasks.assignAll([
-      TaskModel(
-        id: "1",
-        title: "Learn Flutter Widgets",
-        description: "Practice Row, Column, Stack and Container",
-        taskDate: DateTime(2026, 5, 10),
-        createdAt: DateTime.now(),
-      ),
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-      TaskModel(
-        id: "2",
-        title: "Complete GetX Tutorial",
-        description: "Understand Obx and Controller lifecycle",
-        taskDate: DateTime(2026, 5, 11),
-        createdAt: DateTime.now(),
-        isCompleted: true,
-      ),
+  // 1. Declare your RxList of TaskModels
+  // final RxList<TaskModel> tasks = <TaskModel>[].obs;
 
-      TaskModel(
-        id: "3",
-        title: "Build Login Screen",
-        description: "Create responsive login UI",
-        taskDate: DateTime(2026, 5, 12),
-        createdAt: DateTime.now(),
-      ),
+  // A loading indicator state for your UI
+  // final RxBool isLoading = false.obs;
 
-      TaskModel(
-        id: "4",
-        title: "Practice Firebase Auth",
-        description: "Email and password login practice",
-        taskDate: DateTime(2026, 5, 13),
-        createdAt: DateTime.now(),
-      ),
+  // @override
+  // void onInit() {
+  //   super.onInit();
+  //   // Start listening to Firestore as soon as the controller initializes
+  //   streamTasks();
+  // }
 
-      TaskModel(
-        id: "5",
-        title: "Firestore CRUD",
-        description: "Add update delete fetch practice",
-        taskDate: DateTime(2026, 5, 14),
-        createdAt: DateTime.now(),
-        isCompleted: true,
-      ),
+  // 2. Stream data from Firebase and automatically convert it to your RxList
+  void streamTasks() {
+    isLoading.value = true;
 
-      TaskModel(
-        id: "6",
-        title: "Animation Practice",
-        description: "Learn Hero and page transition",
-        taskDate: DateTime(2026, 5, 15),
-        createdAt: DateTime.now(),
-      ),
+    _firestore
+        .collection('tasks')
+        .orderBy("id", descending: true)
+        .snapshots()
+        .listen(
+          (QuerySnapshot snapshot) {
+            // Convert the Firestore documents into TaskModel objects
+            final List<TaskModel> fetchedTasks = snapshot.docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
 
-      TaskModel(
-        id: "7",
-        title: "REST API Integration",
-        description: "Fetch API using http package",
-        taskDate: DateTime(2026, 5, 16),
-        createdAt: DateTime.now(),
-      ),
+              // If you have a factory constructor TaskModel.fromMap, use that instead:
+              // return TaskModel.fromMap(data);
 
-      TaskModel(
-        id: "8",
-        title: "Deploy Flutter Web",
-        description: "Deploy project to Firebase hosting",
-        taskDate: DateTime(2026, 5, 17),
-        createdAt: DateTime.now(),
-      ),
+              return TaskModel.fromMap(data, documentId: doc.id);
+            }).toList();
 
-      TaskModel(
-        id: "9",
-        title: "Learn Clean Architecture",
-        description: "Study repository pattern",
-        taskDate: DateTime(2026, 5, 18),
-        createdAt: DateTime.now(),
-        isCompleted: true,
-      ),
+            // 3. Assign the new data to your GetX RxList
+            tasks.assignAll(fetchedTasks);
+            isLoading.value = false;
+          },
+          onError: (error) {
+            print("❌ Error fetching tasks: $error");
+            isLoading.value = false;
+          },
+        );
+  }
 
-      TaskModel(
-        id: "10",
-        title: "Flutter Interview Preparation",
-        description: "Practice important interview questions",
-        taskDate: DateTime(2026, 5, 19),
-        createdAt: DateTime.now(),
-      ),
-    ]);
+  void toggleComplete(TaskModel task) {
+    print("start.................");
+    _firestore.collection("tasks").doc(task.id).update({
+      "isCompleted": true,
+      "taskDate": DateTime.now(),
+    });
+    print("process");
   }
 }
